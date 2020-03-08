@@ -10,7 +10,8 @@ git clone https://github.com/viyh/cbpi-inkbird.git ~/craftbeerpi3/modules/plugin
 ```
 
 * Install dependencies using raspbian:
-```sudo apt-get update && sudo apt-get install -y libglib2.0-dev
+```
+sudo apt-get update && sudo apt-get install -y libglib2.0-dev
 sudo pip install bluepy
 sudo setcap 'cap_net_raw,cap_net_admin+eip' /usr/local/lib/python2.7/dist-packages/bluepy/bluepy-helper
 ```
