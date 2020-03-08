@@ -13,36 +13,30 @@ inkbird_manager = None
 inkbird_cache = {}
 inkbird_scanner = None
 
-def calc_temp(temperature):
+def calc_temp(raw_value):
+    temperature = int(raw_value[2:4]+raw_value[:2], 16)
     temperature_bits = 16
     if temperature & (1 << (temperature_bits-1)):
         temperature -= 1 << temperature_bits
     temperature = float(temperature) / 100.0
     if cbpi.get_config_parameter("unit", "F") == "F":
         temperature = temperature * 1.8 + 32
-    return temperature
+    return "%2.2f" % (temperature)
 
-def distinct(objects):
-    seen = set()
-    unique = []
-    for obj in objects:
-        if obj['uuid'] not in seen:
-            unique.append(obj)
-            seen.add(obj['uuid'])
-    return unique
+def calc_humidity(raw_value):
+    return "%2.2f" % (int(raw_value[6:8]+raw_value[4:6], 16)/100)
+
+def calc_battery(raw_value):
+    return int(raw_value[14:16], 16)
 
 def handleDiscovery(dev):
     for (adtype, desc, value) in dev.getScanData():
         if adtype == 255:
             data = {}
             try:
-                humidity = "%2.2f" % (int(value[6:8]+value[4:6], 16)/100)
-                data['Humidity'] = humidity
-                temperature = calc_temp(int(value[2:4]+value[:2], 16))
-                temperature = "%2.2f" % (temperature)
-                data['Temperature'] = temperature
-                battery = int(value[14:16], 16)
-                data['Battery'] = battery
+                data['Humidity'] = calc_humidity(value)
+                data['Temperature'] = calc_temp(value)
+                data['Battery'] = calc_battery(value)
             except Exception as e:
                 print(e)
                 pass
@@ -59,7 +53,7 @@ def read_inkbird(cache):
     inkbird_scanner = init_scanner()
     while True:
         if not inkbird_scanner or no_results_counter >= 5:
-            print("Btle went away .. restarting entire btle stack")
+            print("Restarting BTLE scanner...")
             inkbird_scanner = init_scanner()
         inkbird_scanner.process(timeout=8.0)
         results = inkbird_scanner.getDevices()
@@ -81,23 +75,17 @@ def read_inkbird(cache):
 @cbpi.sensor
 class Inkbird(SensorPassive):
     device_mac = Property.Text(
-        label="Inkbird Device MAC Address",
+        label="Device MAC Address",
         configurable=True,
         default_value="",
         description="MAC address of the Inkbird IBS-ITH device"
     )
     sensor_type = Property.Select("Sensor Reading Type", options=["Temperature", "Humidity"], description="Select type of reading for sensor")
-    calibration_temperature = Property.Text(
-        label="Inkbird Temperature Offset",
+    calibration_offset = Property.Number(
+        label="Reading Offset",
         configurable=True,
-        default_value="0",
-        description="This number will be added to the raw temperature reading for calibration. Negative numbers are valid."
-    )
-    calibration_humidity = Property.Text(
-        label="Inkbird Humidity Offset",
-        configurable=True,
-        default_value="0",
-        description="This number will be added to the raw humidity reading for calibration. Negative numbers are valid."
+        default_value=0,
+        description="This number will be added to the raw sensor reading for calibration. Negative numbers are valid."
     )
 
     def init(self):
@@ -112,17 +100,21 @@ class Inkbird(SensorPassive):
         else:
             return " "
 
+    def print_reading(self, value):
+        print("INKBIRD READING - [{}, battery remaining: {}%]\t{}: {}".format(
+            self.device_mac,
+            inkbird_cache[self.device_mac]['Battery'],
+            self.sensor_type,
+            value
+        ))
+
     def read(self):
         if self.device_mac in inkbird_cache:
-            inkbird_cache[self.device_mac]['Temperature'] = float(inkbird_cache[self.device_mac]['Temperature']) + float(self.calibration_temperature)
-            inkbird_cache[self.device_mac]['Humidity'] = float(inkbird_cache[self.device_mac]['Humidity']) + float(self.calibration_humidity)
-            print("DEBUG [{}] {}, {}, {}".format(
-                self.device_mac,
-                inkbird_cache[self.device_mac]['Temperature'],
-                inkbird_cache[self.device_mac]['Humidity'],
-                inkbird_cache[self.device_mac]['Battery']
-            ))
-            self.data_received(inkbird_cache[self.device_mac][self.sensor_type])
+            value = float(inkbird_cache[self.device_mac][self.sensor_type])
+            if self.calibration_offset:
+                value += float(self.calibration_offset)
+            self.print_reading(value)
+            self.data_received(value)
 
 @cbpi.initalizer(order=9999)
 def init(cbpi):
