@@ -17,10 +17,10 @@ def calc_temp(temperature):
     temperature_bits = 16
     if temperature & (1 << (temperature_bits-1)):
         temperature -= 1 << temperature_bits
+    temperature = float(temperature) / 100.0
     if cbpi.get_config_parameter("unit", "F") == "F":
-        return (float(temperature) * 9/5 + 32) / 100.0
-    else:
-        return float(temperature) / 100.0
+        temperature = temperature * 1.8 + 32
+    return temperature
 
 def distinct(objects):
     seen = set()
