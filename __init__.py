@@ -114,12 +114,12 @@ class Inkbird(SensorPassive):
 
     def read(self):
         if self.device_mac in inkbird_cache:
-            temperature = float(inkbird_cache[self.device_mac]['Temperature']) + float(self.calibration_temperature)
-            humidity = float(inkbird_cache[self.device_mac]['Humidity']) + float(self.calibration_humidity)
+            inkbird_cache[self.device_mac]['Temperature'] = float(inkbird_cache[self.device_mac]['Temperature']) + float(self.calibration_temperature)
+            inkbird_cache[self.device_mac]['Humidity'] = float(inkbird_cache[self.device_mac]['Humidity']) + float(self.calibration_humidity)
             print("DEBUG [{}] {}, {}, {}".format(
                 self.device_mac,
-                temperature,
-                humidity,
+                inkbird_cache[self.device_mac]['Temperature'],
+                inkbird_cache[self.device_mac]['Humidity'],
                 inkbird_cache[self.device_mac]['Battery']
             ))
             self.data_received(inkbird_cache[self.device_mac][self.sensor_type])
