@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import time
 from multiprocessing import Process, Manager
 from modules import cbpi
 from modules.core.hardware import SensorPassive
@@ -66,6 +67,7 @@ def read_inkbird(cache):
         else:
             no_results_counter = 0
             inkbird_scanner.clear()
+        time.sleep(4)
 
 ########
 ########
